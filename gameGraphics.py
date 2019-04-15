@@ -1,3 +1,4 @@
+#Made by GarboMuffin
 # Import a library of functions called 'pygame'
 import pygame
 import organism
@@ -5,22 +6,35 @@ import random
 import math
 
 wall_regions = [
+    # x, y, w, h
     [0, 0, 700, 25],
     [0, 0, 25, 500],
     [675, 0, 25, 500],
     [0, 475, 700, 25],
+    [46, 50, 600, 25],
 ]
+
+def point_intersects_wall(x, y):
+    for region in wall_regions:
+        wx, wy, ww, wh = region
+        if x < wx + ww and x > wx and y < wy + wh and y > wy:
+            return True
+    return False
+
+def distance_to_wall(x, y, direction, max_dist):
+    cos = math.cos(direction * math.pi / 180)
+    sin = math.sin(direction * math.pi / 180)
+    for distance in range(0, int(max_dist)):
+        new_x = x + cos * distance
+        new_y = y + sin * distance
+        if point_intersects_wall(new_x, new_y):
+            return distance
+    return -1
+
 
 def mainGraphicsLoop(organisms):
     # Initialize the game engine
     pygame.init()
-
-    #Colors for pygame
-    BLACK = (   0,   0,   0)
-    WHITE = ( 255, 255, 255)
-    GREEN = (   0, 255,   0)
-    RED = ( 255,   0,   0)
-    BLUE = (   0,   0, 255)
 
     #set window peramiters and open the window
     size = (700, 500)
@@ -31,6 +45,8 @@ def mainGraphicsLoop(organisms):
  
     # Used to manage how fast the screen updates
     clock = pygame.time.Clock()
+
+    font = pygame.font.SysFont('Comic Sans MS', 15)
  
     # -------- Main Program Loop -----------
     while not done:
@@ -39,10 +55,10 @@ def mainGraphicsLoop(organisms):
             if event.type == pygame.QUIT: # If user clicked close
                 done = True # Flag that we are done so we exit this loop
 
-        screen.fill(WHITE)
+        screen.fill((255, 255, 255))
 
         for region in wall_regions:
-            pygame.draw.rect(screen, BLACK, region)
+            pygame.draw.rect(screen, (0, 0, 0), region)
 
         for org in organisms:
             # Read & handle outputs
@@ -63,7 +79,21 @@ def mainGraphicsLoop(organisms):
                 distance_y = math.sin(eyeDirection * math.pi / 180) * distance
                 x = org.x + distance_x
                 y = org.y + distance_y
-                pygame.draw.line(screen, eye.color, (org.x, org.y), (x, y), 2)
+
+                trace_x = org.x + math.cos(eyeDirection * math.pi / 180) * org.radius
+                trace_y = org.y + math.sin(eyeDirection * math.pi / 180) * org.radius
+                trace_distance = distance - org.radius
+                eye_to_wall = distance_to_wall(trace_x, trace_y, eyeDirection, trace_distance)
+
+                if eye_to_wall == -1:
+                    value = 0
+                else:
+                    value = (trace_distance - eye_to_wall) / trace_distance
+
+                pygame.draw.line(screen, (0, 127, (value)*255), (trace_x, trace_y), (x, y), 2)
+
+                textsurface = font.render(str(value), False, (0, 0, 255))
+                screen.blit(textsurface, (x,y))
 
 
         #update the screen
