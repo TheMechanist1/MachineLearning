@@ -2,6 +2,7 @@
 import pygame
 import organism
 import random
+import math
 
 wall_regions = [
     [0, 0, 700, 25],
@@ -38,21 +39,32 @@ def mainGraphicsLoop(organisms):
             if event.type == pygame.QUIT: # If user clicked close
                 done = True # Flag that we are done so we exit this loop
 
-        #clear screen to white cause why not
         screen.fill(WHITE)
 
         for region in wall_regions:
             pygame.draw.rect(screen, BLACK, region)
 
         for org in organisms:
+            # Read & handle outputs
             for output in org.neuralNetwork.outputs:
                 if output.type == 'TurnOutput':
                     org.turnOutput(output.average*180)
-
                 elif output.type == 'MoveOutput':
-                        org.moveOutput(output.average)
+                    org.moveOutput(output.average)
 
+            # Show the player's location before drawing eyes
             pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
+
+            # Render eyes
+            for eye in org.neuralNetwork.eyes:
+                eyeDirection = eye.direction + org.rotation
+                distance = eye.distance*10 + org.radius
+                distance_x = math.cos(eyeDirection * math.pi / 180) * distance
+                distance_y = math.sin(eyeDirection * math.pi / 180) * distance
+                x = org.x + distance_x
+                y = org.y + distance_y
+                pygame.draw.line(screen, eye.color, (org.x, org.y), (x, y), 2)
+
 
         #update the screen
         pygame.display.flip()

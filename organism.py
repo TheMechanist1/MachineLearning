@@ -1,7 +1,9 @@
 import math
 import gameGraphics
+import raytracing
 
 class Organism:
+  """An organism"""
   def __init__(self, org):
     self.name = org['name']
     self.generation = org['generation']
@@ -50,6 +52,7 @@ class Organism:
     return sx < x + w and sx + sw > x and sy < y + h and sy + sw > y
 
 class NeuralNet:
+  """The neural net of a Organism"""
   def __init__(self, nNet):
     neurons = {}
     self.outputs = []
@@ -65,10 +68,14 @@ class NeuralNet:
         self.inputs.append(neuro)
       neurons[neuro.id] = neuro
 
-    self.botneurons = neurons
+    self.eyes = []
+    for biologyNode in nNet['biology']:
+      if biologyNode['$TYPE'] == 'eye':
+        self.eyes.append(Eye(biologyNode))
 
 
 class Neuron:
+  """A node of a neural network"""
   def __init__(self, thisNeuron):
       self.type = thisNeuron['$TYPE']
       self._base_type = thisNeuron['_base_type']
@@ -79,3 +86,25 @@ class Neuron:
         weights = [i['weight'] for i in self.deps]
         average = sum(weights) / len(weights)
         self.average = average
+
+class Biology:
+  """An abstract biology node"""
+  def __init__(self, data):
+    self.type = data['$TYPE']
+    self.id = data['id']
+
+class Eye(Biology):
+  colors = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (127, 127, 0),
+  ]
+
+  def __init__(self, data):
+    super().__init__(data)
+    self.distance = float(data['distance'])
+    self.direction = float(data['lookDirection'])
+    color_index = int(data['color'])
+    self.color = Eye.colors[color_index]
+    self.index = float(data['index'])
