@@ -1,6 +1,5 @@
 import math
 import gameGraphics
-import raytracing
 
 class Organism:
   """An organism"""
@@ -17,7 +16,7 @@ class Organism:
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
     self.x = 350
-    self.y = 250
+    self.y = 500
     self.radius = 10
     self.color = (255, 0, 0)
     self.rotation = 0
@@ -56,36 +55,95 @@ class NeuralNet:
   def __init__(self, nNet):
     neurons = {}
     self.outputs = []
+    self.outputDict = {}
     self.inputs = []
-    self.weight = 0
+    self.inputDict = {}
+    # self.weight = 0
+    self.neuronEvalDepth = -1
 
     for currentNeuron in nNet['neurons']:
-      neuro = Neuron(currentNeuron)
-      if neuro._base_type == "output":
-        self.weight = neuro.average
-        self.outputs.append(neuro)
-      elif neuro._base_type == "input":
-        self.inputs.append(neuro)
-      neurons[neuro.id] = neuro
+      neuron = Neuron(self, currentNeuron)
+      if neuron._base_type == "output":
+        # self.weight = neuron.average
+        self.outputs.append(neuron)
+        self.outputDict[neuron.id] = neuron
+      elif neuron._base_type == "input":
+        self.inputs.append(neuron)
+        self.inputDict[neuron.id] = neuron
+      neurons[neuron.id] = neuron
 
     self.eyes = []
+    self.eyesDict = {}
     for biologyNode in nNet['biology']:
       if biologyNode['$TYPE'] == 'eye':
-        self.eyes.append(Eye(biologyNode))
+        eye = Eye(biologyNode)
+        self.eyes.append(eye)
+        self.eyesDict[eye.id] = eye
+  
+  def evaluate(self):
+    for outputs in self.outputs:
+      outputs.reset()
+
+    for outputs in self.outputs:
+      if outputs._base_type == "output":
+        _last_value = outputs.evaluate()
+        outputs._lastValue = _last_value
 
 
 class Neuron:
   """A node of a neural network"""
-  def __init__(self, thisNeuron):
-      self.type = thisNeuron['$TYPE']
-      self._base_type = thisNeuron['_base_type']
-      self.id = thisNeuron['id']
-      self.full = thisNeuron
-      if self._base_type == "output":
-        self.deps = thisNeuron['dependencies']
-        weights = [i['weight'] for i in self.deps]
-        average = sum(weights) / len(weights)
-        self.average = average
+  def __init__(self, network, thisNeuron):
+    self.network = network
+    self.hasBeenEvaluated = False
+    self._lastValue = -1
+    self.type = thisNeuron['$TYPE']
+    self._base_type = thisNeuron['_base_type']
+    self.id = thisNeuron['id']
+    self.full = thisNeuron
+    if self._base_type == "output":
+      self.deps = []
+      for dep in thisNeuron['dependencies']:
+        self.deps.append(Dependency(self.network, dep))
+      # weights = [i.weight for i in self.deps]
+      # average = sum(weights) / len(weights)
+      # self.average = average
+      self.weight = 0
+    if 'eye' in thisNeuron:
+      self.eyeId = thisNeuron['eye']
+
+  def evaluate(self):
+    # if self.hasBeenEvaluated:
+    #   return self._lastValue
+    if self._base_type == 'input':
+      value = self.network.eyesDict[self.eyeId].value
+      return value * 2 - 1
+    elif self._base_type == 'output':
+      totalScore = 0
+
+      for dep in self.deps:
+        dep._lastValue = dep.evaluate()
+        totalScore += dep._lastValue
+
+      self._lastValue = (1 / (1 + math.exp(-totalScore))) 
+      self.hasBeenEvaluated = True
+
+      self.weight = self._lastValue * 2 - 1
+      return self._lastValue
+
+  def reset(self):
+    self.hasBeenEvaluated = False
+    self._lastValue = -1
+
+class Dependency:
+  def __init__(self, network, data):
+    self.neuronId = data['neuronId']
+    self.input = network.inputDict[self.neuronId]
+    self.weight = float(data['weight'])
+    self.originalNaturalGen = data['_originNaturalGen']
+    self.originGen = data['_originGen']
+
+  def evaluate(self):
+    return self.input.evaluate() * self.weight
 
 class Biology:
   """An abstract biology node"""
@@ -108,3 +166,4 @@ class Eye(Biology):
     color_index = int(data['color'])
     self.color = Eye.colors[color_index]
     self.index = float(data['index'])
+    self.value = 0

@@ -6,12 +6,12 @@ import random
 import math
 
 wall_regions = [
-    # x, y, w, h
-    [0, 0, 700, 25],
-    [0, 0, 25, 500],
-    [675, 0, 25, 500],
-    [0, 475, 700, 25],
-    [46, 50, 600, 25],
+    # x, y, w, h, name
+    [0, 0, 700, 25, ""],
+    [0, 0, 25, 500, ""],
+    [675, 0, 25, 500, ""],
+    [0, 475, 700, 25, ""],
+    [46, 50, 600, 25, ""],
 ]
 
 def point_intersects_wall(x, y):
@@ -61,20 +61,26 @@ def mainGraphicsLoop(organisms):
             pygame.draw.rect(screen, (0, 0, 0), region)
 
         for org in organisms:
+            org.neuralNetwork.evaluate()
+
             # Read & handle outputs
             for output in org.neuralNetwork.outputs:
                 if output.type == 'TurnOutput':
-                    org.turnOutput(output.average*180)
+                    org.turnOutput(output.weight*180)
                 elif output.type == 'MoveOutput':
-                    org.moveOutput(output.average)
+                    org.moveOutput(output.weight)
 
             # Show the player's location before drawing eyes
             pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
+            
+            view_x = org.x + math.cos(org.rotation * math.pi / 180) * org.radius * 2
+            view_y = org.y + math.sin(org.rotation * math.pi / 180) * org.radius * 2
+            pygame.draw.line(screen, (0, 0, 0), (org.x, org.y), (view_x, view_y), 2)
 
             # Render eyes
             for eye in org.neuralNetwork.eyes:
-                eyeDirection = eye.direction + org.rotation
-                distance = eye.distance*10 + org.radius
+                eyeDirection = eye.direction
+                distance = eye.distance*20 + org.radius
                 distance_x = math.cos(eyeDirection * math.pi / 180) * distance
                 distance_y = math.sin(eyeDirection * math.pi / 180) * distance
                 x = org.x + distance_x
@@ -89,11 +95,11 @@ def mainGraphicsLoop(organisms):
                     value = 0
                 else:
                     value = (trace_distance - eye_to_wall) / trace_distance
+                eye.value = value
 
-                pygame.draw.line(screen, (0, 127, (value)*255), (trace_x, trace_y), (x, y), 2)
-
-                textsurface = font.render(str(value), False, (0, 0, 255))
-                screen.blit(textsurface, (x,y))
+                pygame.draw.line(screen, (0, 200, (value)*255), (trace_x, trace_y), (x, y), 2)
+                #textsurface = font.render(str(value), False, (0, 0, 255))
+                #screen.blit(textsurface, (x,y))
 
 
         #update the screen
