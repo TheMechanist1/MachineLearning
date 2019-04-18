@@ -28,6 +28,9 @@ def startSession(username, trainingroom, auth):
     r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/start', headers={'Authorization':auth})
     response = r.json()
     if r.status_code != 200:
+        if r.status_code == 401:
+            os.remove("cachedlogin")
+            return
         print("Error! Got a status-code of " + str(r.status_code) + "\nTraceback:" + str(response))
         return
 

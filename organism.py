@@ -1,5 +1,6 @@
 import math
 import gameGraphics
+import random
 
 class Organism:
   """An organism"""
@@ -16,16 +17,17 @@ class Organism:
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
     self.x = 350
-    self.y = 500
+    self.y = 400
     self.radius = 10
     self.color = (255, 0, 0)
-    self.rotation = 0
+    self.rotation = random.randint(0, 360)
 
-  def turnOutput(self, degrees):
-    self.rotation = degrees
+  def turnOutput(self, weight):
+    if weight > 0.5:
+      self.rotation = (1 / (1 + math.exp(weight))) * 180
 
   def moveOutput(self, weight):
-    x_movement = weight*math.cos(self.rotation * (math.pi / 180))
+    x_movement = (math.cos(self.rotation * (math.pi / 180)))*weight
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
@@ -34,7 +36,26 @@ class Organism:
         else:
           self.x += 1
 
-    y_movement = weight*math.sin(self.rotation * (math.pi / 180))
+    y_movement = (math.sin(self.rotation * (math.pi / 180)))*weight
+    self.y -= y_movement
+    for reg in gameGraphics.wall_regions:
+      while self.intersects(reg):
+        if y_movement > 0:
+          self.y += 1
+        else:
+          self.y -= 1
+  
+  def sidwaysMoveOutput(self, weight):
+    x_movement = (math.sin(self.rotation * (math.pi / 180)))*weight
+    self.x += x_movement
+    for reg in gameGraphics.wall_regions:
+      while self.intersects(reg):
+        if x_movement > 0:
+          self.x -= 1
+        else:
+          self.x += 1
+
+    y_movement = (math.cos(self.rotation * (math.pi / 180)))*weight
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
@@ -44,7 +65,10 @@ class Organism:
           self.y -= 1
 
   def intersects(self, region):
-    x, y, w, h = region
+    x = region[0]
+    y = region[1]
+    w = region[2]
+    h = region[3]
     sx = self.x - self.radius
     sy = self.y - self.radius
     sw = self.radius * 2
@@ -108,6 +132,9 @@ class Neuron:
       # average = sum(weights) / len(weights)
       # self.average = average
       self.weight = 0
+    if self._base_type == "input":
+      self.attributeId = thisNeuron['attributeId']
+      self.attributeValue = thisNeuron['attributeValue']
     if 'eye' in thisNeuron:
       self.eyeId = thisNeuron['eye']
 
@@ -124,7 +151,7 @@ class Neuron:
         dep._lastValue = dep.evaluate()
         totalScore += dep._lastValue
 
-      self._lastValue = (1 / (1 + math.exp(-totalScore))) 
+      self._lastValue = (1 / (1 + math.exp(totalScore))) 
       self.hasBeenEvaluated = True
 
       self.weight = self._lastValue * 2 - 1
