@@ -4,13 +4,19 @@ import pygame
 import organism
 import random
 import math
+import time
+import json
+import chaosapi
+import scoreOrb
 
+scoredOrgs = []
+jsonMes = ''
 wall_regions = [
-    # x, y, w, h, name
+    # x, y, w, h, name, color
     [0, 0, 700, 25, "BLACK_WALL", (0, 0, 0)],
-    [0, 0, 25, 700, "BLACK_WALL", (0, 0, 0)],
+    [0, 0, 25, 700, "BLUE_WALL", (0, 0, 255)],
     [675, 0, 25, 700, "RED_WALL", (255, 0, 0)],
-    [0, 675, 700, 25, "BLACK_WALL", (0, 0, 0)],
+    [0, 675, 700, 25, "GREEN_WALL", (0, 255, 0)],
 ]
 
 def point_intersects_wall(x, y):
@@ -33,12 +39,22 @@ def distance_to_wall(x, y, direction, max_dist):
         inter = point_intersects_wall(new_x, new_y)
         if inter[0]:
             return distance, inter[1]
+        
     return -1, None
 
+organismList = []
+scoreOrbList = []
 
-def mainGraphicsLoop(organisms):
+def mainGraphicsLoop():
     # Initialize the game engine
     pygame.init()
+    
+    orgsani = chaosapi.setup()
+    organ = orgsani[0]
+    for org in organ['organisms']:
+        organismList.append(organism.Organism(org))
+    
+    scoreOrbList.append(scoreOrb.ScoreOrb(10, 350, 350))
 
     #set window peramiters and open the window
     size = (700, 700)
@@ -63,9 +79,33 @@ def mainGraphicsLoop(organisms):
 
         for region in wall_regions:
             pygame.draw.rect(screen, region[5], (region[0], region[1], region[2], region[3]))
+        
+        if len(scoreOrbList) != 0:
+            for scoreOrbs in scoreOrbList:
+                pygame.draw.circle(screen, (0, 255, 0), (scoreOrbs.x, scoreOrbs.y), 5)
 
-        for org in organisms:
-        #org = organisms[2]
+        encoded = []
+        if len(organismList) <= 0:
+            for score in scoredOrgs:
+                encoded.append(score.to_json())
+            
+            scoredOrgs.clear()
+            organismList.clear()
+            jsonMes = json.dumps({"report": encoded})
+            newOrgs = chaosapi.reportOrgs('mechanist', 'finalRoom', orgsani[1], orgsani[2], jsonMes)
+            for orgsi in newOrgs['organisms']:
+                organismList.append(organism.Organism(orgsi))
+            
+        for org in organismList[:]:
+            color = (255, 0, 0)
+            textsurface = font.render(str(org.trainingRoomNamespace), False, (255, 255, 255))
+            screen.blit(textsurface, (0,0))
+
+            org.time = time.monotonic()
+            if org.time - org.spawnedTime >= org.maxTime:
+                scoredOrgs.append(org)
+                organismList.remove(org)
+
             org.neuralNetwork.evaluate()
 
             # Read & handle outputs
@@ -86,12 +126,14 @@ def mainGraphicsLoop(organisms):
             pygame.draw.line(screen, (0, 0, 0), (org.x, org.y), (view_x, view_y), 2)
             
             # Render eyes
+            eye = None
             for i in org.neuralNetwork.inputs:
                 eyeID = i.eyeId
                 eyeValue = i.attributeValue
             for eyes in org.neuralNetwork.eyes:
                 if eyes.id == eyeID:
                     eye = eyes
+                    
             eyeDirection = eye.direction + -org.rotation
             distance = 100 + org.radius
             distance_x = math.cos(eyeDirection * math.pi / 180) * distance
@@ -108,12 +150,13 @@ def mainGraphicsLoop(organisms):
                 value = 0
             elif eyeValue == eye_to_wall[1]:
                 value = (trace_distance - eye_to_wall[0]) / trace_distance
+                color = (0, 255, 0)
             else:
                 value = 0
             eye.value = value
 
-            pygame.draw.line(screen, (0, 200, (value)*255), (trace_x, trace_y), (x, y), 2)
-            textsurface = font.render(str(value), False, (0, 0, 255))
+            pygame.draw.line(screen, color, (trace_x, trace_y), (x, y), 2)
+            textsurface = font.render(str(org.generation) + " " + str(org.score), False, (0, 0, 0))
             screen.blit(textsurface, (x,y))
 
 
@@ -122,4 +165,4 @@ def mainGraphicsLoop(organisms):
  
         #60 frames per second
         #TODO: add a function to make this go faster for faster sim times
-        clock.tick(60)
+        #clock.tick(60)

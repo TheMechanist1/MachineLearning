@@ -1,5 +1,10 @@
 import requests
 import os
+import json
+import argparse
+import time
+
+
 
 #Do a post and get the authToken useing the inputed username and password
 #TODO: dont forget to remove your password and username Dylan >:(
@@ -45,3 +50,40 @@ def getOrganisms(username, trainingroom, auth, namespace):
         return
 
     return response
+
+def reportOrgs(username, trainingroom, auth, namespace, orgjson):
+    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, data=orgjson)
+    response = r.json()
+    if r.status_code != 200:
+        print("Error! Got a status-code of " + str(r.status_code) + "\nTraceback:" + str(response))
+        return
+    return response
+
+def setup():
+    parser = argparse.ArgumentParser(description='aa')
+    parser.add_argument('--password')
+    parser.add_argument('--username')
+    args = parser.parse_args()
+
+    #Begin setup timer
+    start = time.time()
+
+    #Get our auth token from chaosnet
+    print("Logging in and getting token...")
+    authToken = login(args.username, args.password)
+
+    #Start the session and get the namespace
+    print("Starting session and getting namespace...")
+    nameSpace = startSession('mechanist', 'finalRoom', authToken, )
+
+    #Get our organisms for later use
+    print("Getting the organisms...")
+    orgs = getOrganisms('mechanist', 'finalRoom', authToken, nameSpace)
+
+    #End setup timer
+    end = time.time()
+
+    #Get the time it took to setup
+    print("Setup took about " + str(round((end - start), 3)) + " seconds")
+
+    return [orgs, authToken, nameSpace]
