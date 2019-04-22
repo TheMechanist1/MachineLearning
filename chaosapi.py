@@ -4,7 +4,7 @@ import json
 import argparse
 import time
 
-
+args = ()
 
 #Do a post and get the authToken useing the inputed username and password
 #TODO: dont forget to remove your password and username Dylan >:(
@@ -35,7 +35,7 @@ def startSession(username, trainingroom, auth):
     if r.status_code != 200:
         if r.status_code == 401:
             os.remove("cachedlogin")
-            return
+            authToken = login(args.username, args.password)
         print("Error! Got a status-code of " + str(r.status_code) + "\nTraceback:" + str(response))
         return
 
@@ -55,6 +55,10 @@ def reportOrgs(username, trainingroom, auth, namespace, orgjson):
     r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, data=orgjson)
     response = r.json()
     if r.status_code != 200:
+        if r.status_code == 401:
+            os.remove("cachedlogin")
+            authToken = login(args.username, args.password)
+
         print("Error! Got a status-code of " + str(r.status_code) + "\nTraceback:" + str(response))
         return
     return response

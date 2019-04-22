@@ -17,11 +17,11 @@ class Organism:
     self.ttl = org['ttl']
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
-    self.x = 350
-    self.y = 650
+    self.x = 350 + random.randint(-50, 50)
+    self.y = 350 + random.randint(-50, 50)
     self.radius = 10
-    self.color = (255, 0, 0)
-    self.rotation = random.randint(0, 360)
+    self.color = (0, 0, 0)
+    self.rotation = 0 #random.randint(0, 360)
     self.spawnedTime = time.monotonic()
     self.time = 0
     self.maxTime = 15
@@ -32,50 +32,50 @@ class Organism:
 
 
   def turnOutput(self, weight):
-    if weight > 0.5:
-      self.rotation = (1 / (1 + math.exp(weight))) * 180
+    if weight > 0.5 or weight < -0.5:
+      self.rotation += weight
 
   def moveOutput(self, weight):
-    x_movement = (math.cos(self.rotation * (math.pi / 180)))*weight
+    x_movement = math.cos(weight*180)
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
         if reg[4] == 'RED_WALL':
-          self.score = -10
+          self.score += -10
         if x_movement > 0:
           self.x -= 1
         else:
           self.x += 1
 
-    y_movement = (math.sin(self.rotation * (math.pi / 180)))*weight
+    y_movement = math.sin(weight*180)
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
         if reg[4] == 'RED_WALL':
-          self.score = -10
+          self.score += -10
         if y_movement > 0:
           self.y += 1
         else:
           self.y -= 1
   
   def sidwaysMoveOutput(self, weight):
-    x_movement = (math.sin(self.rotation * (math.pi / 180)))*weight
+    x_movement = math.sin(weight*180)
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
         if reg[4] == 'RED_WALL':
-          self.score = -10
+          self.score += -10
         if x_movement > 0:
           self.x -= 1
         else:
           self.x += 1
 
-    y_movement = (math.cos(self.rotation * (math.pi / 180)))*weight
+    y_movement = math.cos(weight*180)
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
         if reg[4] == 'RED_WALL':
-          self.score = -10
+          self.score += -10
           # self.neuralNetwork.orgList.remove(self)
         if y_movement > 0:
           self.y += 1
@@ -118,10 +118,10 @@ class NeuralNet:
         self.inputDict[inp.id] = neuron
       elif neuron._base_type == "middle":
         mid = Middle(self, currentNeuron)
-        self.inputs.append(mid)
-        self.inputDict[mid.id] = neuron
+        self.middles.append(mid)
+        self.middleDict[mid.id] = neuron
       neurons[neuron.id] = neuron
-
+    
     self.eyes = []
     self.eyesDict = {}
     for biologyNode in nNet['biology']:
@@ -151,7 +151,11 @@ class Neuron:
     self.id = thisNeuron['id']
     self.full = thisNeuron
 
-      
+    self.deps = []
+    if 'dependencies' in thisNeuron:
+      for dep in thisNeuron['dependencies']:
+        self.deps.append(Dependency(self.network, dep))
+      self.weight = 0
 
     if 'eye' in thisNeuron:
       self.eyeId = thisNeuron['eye']
@@ -162,21 +166,21 @@ class Neuron:
     # if self.hasBeenEvaluated:
     #   return self._lastValue
     if self._base_type == 'input':
-      
       value = self.network.eyesDict[self.eyeId].value
       return value * 2 - 1
-    elif self._base_type == 'output' or self._base_type == 'middle':
+    elif self._base_type == 'output':
       totalScore = 0
 
       for dep in self.deps:
-        dep._lastValue = dep.evaluate()
-        totalScore += dep._lastValue
+        if dep != -1:
+          dep._lastValue = dep.evaluate()
+          totalScore += dep._lastValue
 
-      self._lastValue = (1 / (1 + math.exp(totalScore))) 
-      self.hasBeenEvaluated = True
+        self._lastValue = (1 / (1 + math.exp(totalScore))) 
+        self.hasBeenEvaluated = True
 
-      self.weight = self._lastValue * 2 - 1
-      return self._lastValue
+        self.weight = self._lastValue * 2 - 1
+        return self._lastValue
 
   def reset(self):
     self.hasBeenEvaluated = False
@@ -187,38 +191,40 @@ class Input(Neuron):
     super().__init__(network, thisNeuron)
     self.attributeId = thisNeuron['attributeId']
     self.attributeValue = thisNeuron['attributeValue']
-    
+
 class Middle(Neuron):
   def __init__(self, network, thisNeuron):
     super().__init__(network, thisNeuron)
-    self.id = thisNeuron['id']
-    self.deps = []
-    for dep in thisNeuron['dependencies']:
-      self.deps.append(Dependency(self.network, dep))
-    self.weight = 0
+
+    
 class Output(Neuron):
   def __init__(self, network, thisNeuron):
     super().__init__(network, thisNeuron)
-    self.deps = []
-    for dep in thisNeuron['dependencies']:
-      self.deps.append(Dependency(self.network, dep))
-    self.weight = 0
 
 class Dependency:
   def __init__(self, network, data):
     self.neuronId = data['neuronId']
     
     
-    
+    self._last_value = -1
     self.weight = float(data['weight'])
     self.originalNaturalGen = data['_originNaturalGen']
     self.originGen = data['_originGen']
+    self.input = -1
 
-    print(network.inputs)
-    self.input = network.inputDict[self.neuronId]
+    if self.neuronId in network.inputDict:
+      self.input = network.inputDict[self.neuronId]
+    elif self.neuronId in network.outputDict:
+      self.input = network.outputDict[self.neuronId]
+    elif self.neuronId in network.middleDict:
+      self.input = network.middleDict[self.neuronId]
 
   def evaluate(self):
-    return self.input.evaluate() * self.weight
+    if self.input != -1:
+      return self.input.evaluate() * self.weight
+    else:
+      return -1
+    
 
 class Biology:
   """An abstract biology node"""
@@ -229,7 +235,6 @@ class Biology:
 class Eye(Biology):
   def __init__(self, data):
     super().__init__(data)
-    self.distance = float(data['distance'])
     self.direction = float(data['lookDirection'])
     self.index = float(data['index'])
     self.value = 0
