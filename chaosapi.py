@@ -56,7 +56,7 @@ def getOrganisms(username, trainingroom, auth, namespace):
     return response
 
 def reportOrgs(username, trainingroom, auth, namespace, orgjson):
-    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, data=orgjson)
+    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, json=orgjson)
     response = r.json()
     if r.status_code != 200:
         if r.status_code == 401:
