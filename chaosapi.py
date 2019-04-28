@@ -29,8 +29,12 @@ def login(username, password):
     return accessToken
 
 #Uses the authToken we got from the login def to start a new session which will give us the namespace
-def startSession(username, trainingroom, auth):
-    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/start', headers={'Authorization':auth})
+def startSession(username, trainingroom, auth, bool):
+    if bool:
+        requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/start', headers={'Authorization':auth}, json={'reset': 'true'})
+        r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/start', headers={'Authorization':auth})
+    else:
+        r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/start', headers={'Authorization':auth})
     response = r.json()
     if r.status_code != 200:
         if r.status_code == 401:
@@ -78,7 +82,7 @@ def setup():
 
     #Start the session and get the namespace
     print("Starting session and getting namespace...")
-    nameSpace = startSession('mechanist', 'finalRoom', authToken, )
+    nameSpace = startSession('mechanist', 'finalRoom', authToken, False)
 
     #Get our organisms for later use
     print("Getting the organisms...")

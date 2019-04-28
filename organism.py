@@ -3,6 +3,16 @@ import gameGraphics
 import random
 import time
 
+class Stats:
+  def __init__(self, stat):
+    self.speciesCreated = stat['speciesCreated']
+    self.totalOrgsPerGen = stat['totalOrgsPerGen']
+    self.orgsSpawnedSoFar = stat['orgsSpawnedSoFar']
+    self.orgsReportedSoFar = stat['orgsReportedSoFar']
+    self.orgsToSpawn = stat['orgsToSpawn']
+    self.orgsLeftToReport = stat['orgsLeftToReport']
+    self.genProgress = stat['genProgress']
+
 class Organism:
   """An organism"""
   def __init__(self, org):
@@ -17,14 +27,14 @@ class Organism:
     self.ttl = org['ttl']
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
-    self.x = 350 + random.randint(-50, 50)
-    self.y = 350 + random.randint(-50, 50)
+    self.x = 350 + random.randint(-300, 300)
+    self.y = 350 + random.randint(-300, 300)
     self.radius = 10
     self.color = (0, 0, 0)
     self.rotation = 0 #random.randint(0, 360)
-    self.spawnedTime = time.monotonic()
+    self.spawnedFrame = gameGraphics.frames
     self.time = 0
-    self.maxTime = 15
+    self.maxFrames = 15 * 60
 
   def to_json(self):
     orgJson = {"namespace":self.namespace, "score": str(self.score)}
@@ -40,8 +50,6 @@ class Organism:
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
-        if reg[4] == 'RED_WALL':
-          self.score += -10
         if x_movement > 0:
           self.x -= 1
         else:
@@ -51,8 +59,6 @@ class Organism:
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
-        if reg[4] == 'RED_WALL':
-          self.score += -10
         if y_movement > 0:
           self.y += 1
         else:
@@ -63,8 +69,6 @@ class Organism:
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
-        if reg[4] == 'RED_WALL':
-          self.score += -10
         if x_movement > 0:
           self.x -= 1
         else:
@@ -74,8 +78,7 @@ class Organism:
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
-        if reg[4] == 'RED_WALL':
-          self.score += -10
+
           # self.neuralNetwork.orgList.remove(self)
         if y_movement > 0:
           self.y += 1
@@ -124,11 +127,17 @@ class NeuralNet:
     
     self.eyes = []
     self.eyesDict = {}
+    self.colors = []
+    self.colorDict = {}
     for biologyNode in nNet['biology']:
       if biologyNode['$TYPE'] == 'eye':
         eye = Eye(biologyNode)
         self.eyes.append(eye)
         self.eyesDict[eye.id] = eye
+      if biologyNode['$TYPE'] == 'color':
+        color = Color(biologyNode)
+        self.colors.append(color)
+        self.colorDict[color.id] = color
   
   def evaluate(self):
     for outputs in self.outputs:
@@ -138,6 +147,7 @@ class NeuralNet:
       if outputs._base_type == "output":
         _last_value = outputs.evaluate()
         outputs._lastValue = _last_value
+    
 
 
 class Neuron:
@@ -168,7 +178,7 @@ class Neuron:
     if self._base_type == 'input':
       value = self.network.eyesDict[self.eyeId].value
       return value * 2 - 1
-    elif self._base_type == 'output':
+    elif self._base_type == 'output' or self._base_type == 'middle':
       totalScore = 0
 
       for dep in self.deps:
@@ -242,4 +252,4 @@ class Eye(Biology):
 class Color(Biology):
   def __init__(self, data):
     super().__init__(data)
-    self.color = (data['r'], data['g'], data['b'])
+    self.color = (int(data['r']), int(data['g']), int(data['b']))
