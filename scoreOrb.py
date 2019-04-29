@@ -1,6 +1,7 @@
 import random
 import math
 scoreOrbList = []
+#Take the score orb and turn it into a usable object
 class ScoreOrb:
   def __init__(self, orbType, radius, x, y):
     self.score = 0
@@ -22,6 +23,7 @@ class ScoreOrb:
       # print (self.score)
       self.color = (255, 255, 0)
 
+#Detect when a org is touching the scoreOrb
   def intersects(self, other):
     x = other.x
     y = other.y

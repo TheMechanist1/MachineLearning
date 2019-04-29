@@ -126,6 +126,7 @@ def mainGraphicsLoop():
                 if reg == "RED_WALL":
                     org.score -= 1
 
+        org.neuralNetwork.evaluate()
 
         color = (255, 0, 0)
         textsurface = font.render(str(org.trainingRoomNamespace), False, (255, 255, 255))
@@ -153,7 +154,7 @@ def mainGraphicsLoop():
             if output.type == 'MoveOutput':
                 org.moveOutput(output._lastValue)
             if output.type == 'MoveSidewaysOutput':
-                org.sidwaysMoveOutput(output._lastValue)
+                org.sidwaysMoveOutput(output._lastValue * output.weight)
 
         # Show the player's location before drawing eyes
         pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
@@ -181,15 +182,22 @@ def mainGraphicsLoop():
             trace_distance = distance - org.radius
             eye_to_wall = distance_to_wall(trace_x, trace_y, eyeDirection, trace_distance)
             eye_to_orb = distance_to_orb(trace_x, trace_y, eyeDirection, trace_distance)
+            #While looking at nothing turn a weird purplish color
             if eye_to_wall[0] == -1 and eye_to_orb[0] == -1:
                 value = 0
                 color = (123, 57, 199)
+            
+            #While looking at a wall that is the same as the eyeValue turn green and change the value
             elif eyeValue == eye_to_wall[1]:
                 value = (trace_distance - eye_to_wall[0]) / trace_distance
                 color = (0, 255, 0)
+
+            #While looking at an orb that is the same as the eyeValue turn cyan and change the value
             elif eyeValue == eye_to_orb[1]:
                 value = (trace_distance - eye_to_orb[0]) / trace_distance
                 color = (0, 255, 255)
+
+            #While looking at something else turn yellow
             else:
                 value = 0
                 color = (255, 255, 0)
@@ -203,7 +211,8 @@ def mainGraphicsLoop():
             screen.blit(score,(org.x,org.y))
         i = 0
         for o in org.neuralNetwork.outputs:
-            
+            #Some debug stuff pls ignore
+            #TODO: delete when done with project
             weight = font.render("weight:" + str(round(o.weight, 2)) + " " + str(o.type), False, (0, 0, 0))
             screen.blit(weight,(org.x + i*180,org.y))
             score = font.render("Value:" + str(round(o._lastValue, 2)) + " " + str(o.type), False, (0, 0, 0))

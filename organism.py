@@ -3,6 +3,7 @@ import gameGraphics
 import random
 import time
 
+#Take the stats and turn it into a usable object
 class Stats:
   def __init__(self, stat):
     self.speciesCreated = stat['speciesCreated']
@@ -13,6 +14,7 @@ class Stats:
     self.orgsLeftToReport = stat['orgsLeftToReport']
     self.genProgress = stat['genProgress']
 
+#Take the organism and turn it into a usable object
 class Organism:
   """An organism"""
   def __init__(self, org):
@@ -40,11 +42,13 @@ class Organism:
     orgJson = {"namespace":self.namespace, "score": str(self.score)}
     return orgJson
 
-
+#Turns at a speed determained by the lastValue
+#TODO: rewrite this function because it sucks and the orgs cant learn with it
   def turnOutput(self, weight):
     if weight > 0.5 or weight < -0.5:
       self.rotation += weight
 
+#Takes the lastvalue to move the organism up or down
   def moveOutput(self, weight):
     x_movement = math.cos(weight*180)
     self.x += x_movement
@@ -64,6 +68,7 @@ class Organism:
         else:
           self.y -= 1
   
+  #Takes the lastvalue to move the organism left or right
   def sidwaysMoveOutput(self, weight):
     x_movement = math.sin(weight*180)
     self.x += x_movement
@@ -78,13 +83,12 @@ class Organism:
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
-
-          # self.neuralNetwork.orgList.remove(self)
         if y_movement > 0:
           self.y += 1
         else:
           self.y -= 1
 
+#My intersect function to check if the organism is touching a wall or a orb
   def intersects(self, region):
     x = region[0]
     y = region[1]
@@ -95,6 +99,7 @@ class Organism:
     sw = self.radius * 2
     return sx < x + w and sx + sw > x and sy < y + h and sy + sw > y
 
+#Class to turn my NeuralNetwork into a usable object
 class NeuralNet:
   """The neural net of a Organism"""
   def __init__(self, nNet):
@@ -106,6 +111,20 @@ class NeuralNet:
     self.middles = []
     self.middleDict = {}
     self.neuronEvalDepth = -1
+    self.eyes = []
+    self.eyesDict = {}
+    self.colors = []
+    self.colorDict = {}
+
+    for biologyNode in nNet['biology']:
+      if biologyNode['$TYPE'] == 'eye':
+        eye = Eye(biologyNode)
+        self.eyes.append(eye)
+        self.eyesDict[eye.id] = eye
+      if biologyNode['$TYPE'] == 'color':
+        color = Color(biologyNode)
+        self.colors.append(color)
+        self.colorDict[color.id] = color
 
     for currentNeuron in nNet['neurons']:
       neuron = Neuron(self, currentNeuron)
@@ -122,30 +141,18 @@ class NeuralNet:
         self.middles.append(mid)
         self.middleDict[mid.id] = neuron
       neurons[neuron.id] = neuron
-    
-    self.eyes = []
-    self.eyesDict = {}
-    self.colors = []
-    self.colorDict = {}
-    for biologyNode in nNet['biology']:
-      if biologyNode['$TYPE'] == 'eye':
-        eye = Eye(biologyNode)
-        self.eyes.append(eye)
-        self.eyesDict[eye.id] = eye
-      if biologyNode['$TYPE'] == 'color':
-        color = Color(biologyNode)
-        self.colors.append(color)
-        self.colorDict[color.id] = color
-  
- 
-    
 
-
+#small function to make sure I am always evaluating
+#TODO: Something is wrong with one of these evaluate functions cause the lastValue never changes. Gotta look into this eventualy
+  def evaluate(self):
+    
+    for output in self.outputs:
+      output._lastValue = output.outputEvaluate()
+      
 class Neuron:
   """A node of a neural network"""
   def __init__(self, network, thisNeuron):
     self.network = network
-    self.hasBeenEvaluated = False
     self._lastValue = 0
     self.weight = 0
     self.type = thisNeuron['$TYPE']
@@ -154,14 +161,39 @@ class Neuron:
     self.full = thisNeuron
 
     self.deps = []
-    if 'dependencies' in thisNeuron:
-      for dep in thisNeuron['dependencies']:
-        thedep = Dependency(self.network, dep)
-        self.deps.append(thedep)
 
-  
     if 'eye' in thisNeuron:
       self.eyeId = thisNeuron['eye']
+
+    if 'dependencies' in thisNeuron:
+      for dep in thisNeuron['dependencies']:
+        self.deps.append(Dependency(self.network, dep))
+        
+  #Evaluate the last value of the output neuron and also do the weights but that doesnt matter as of now
+  def outputEvaluate(self):
+    value = 0
+    weight = 0
+    
+    for depend in self.deps:
+      if self._lastValue != -100:
+        value += depend._last_value
+        weight += depend.depweight
+    if len(self.deps) != 0:
+      self.weight = weight / len(self.deps)
+    value = self.sigmoid(value)
+    return value
+
+#Sigmoid but with a check to make sure I dont get a outofbounds exeption
+  def sigmoid(self, i):
+    sig = 0
+    if i > 0:
+      sig = (1) / (1 + math.exp(-i))
+    if i < 0:
+      sig = (1 - 1/(1 + math.exp(i)))
+    return sig
+    
+
+    
 
 
 class Input(Neuron):
@@ -178,24 +210,28 @@ class Middle(Neuron):
 class Output(Neuron):
   def __init__(self, network, thisNeuron):
     super().__init__(network, thisNeuron)
-    self.outLastValue = -1
 
 class Dependency:
   def __init__(self, network, data):
-    self.neuronId = data['neuronId']
     
-    self.weight = float(data['weight'])
-    self.originalNaturalGen = data['_originNaturalGen']
-    self.originGen = data['_originGen']
-    self.input = -1
-
+    self.neuronId = data['neuronId']
+    self.depweight = float(data['weight'])
+    self._last_value = -100
     if self.neuronId in network.inputDict:
       self.input = network.inputDict[self.neuronId]
-    elif self.neuronId in network.outputDict:
-      self.input = network.outputDict[self.neuronId]
+      if self.input.eyeId in network.eyesDict:
+        self.eye = network.eyesDict[self.input.eyeId]
+        self._last_value = self.evaluateDep()
     elif self.neuronId in network.middleDict:
       self.input = network.middleDict[self.neuronId]
+    
 
+  def evaluateDep(self):
+    print(str(self.depweight) + " " + str(self.eye.value))
+    return self.depweight * self.eye.value
+      
+    
+    
     
 
 class Biology:

@@ -2,7 +2,7 @@ import time
 regions = []
 
 enable = False
-
+#profiler to help me with optimization pls ignore
 class Region:
     def __init__(self, name):
         self.name = name

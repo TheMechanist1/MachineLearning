@@ -55,8 +55,9 @@ def getOrganisms(username, trainingroom, auth, namespace):
 
     return response
 
+#report orgs and get back a new set of orgs. use data to go to next set and use json to stay on this set
 def reportOrgs(username, trainingroom, auth, namespace, orgjson):
-    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, json=orgjson)
+    r = requests.post('https://chaosnet.schematical.com/v0/'+username+'/trainingrooms/'+trainingroom+'/sessions/'+namespace+'/next', headers={'Authorization':auth}, data=orgjson)
     response = r.json()
     if r.status_code != 200:
         if r.status_code == 401:
@@ -67,6 +68,7 @@ def reportOrgs(username, trainingroom, auth, namespace, orgjson):
         return
     return response
 
+#setup all the stuff and things
 def setup():
     parser = argparse.ArgumentParser(description='aa')
     parser.add_argument('--password')
