@@ -13,10 +13,10 @@ import profiler
 scoredOrgs = []
 wall_regions = [
     # x, y, w, h, name, color
-    [0, 0, 700, 25, "RED_WALL", (0, 255, 0)],
-    [0, 0, 25, 700, "RED_WALL", (0, 255, 0)],
-    [675, 0, 25, 700, "RED_WALL", (0, 255, 0)],
-    [0, 675, 700, 25, "RED_WALL", (0, 255, 0)],
+    [0, 0, 700, 25, "RED_WALL", (255, 0, 0)],
+    [0, 0, 25, 700, "RED_WALL", (255, 0, 0)],
+    [675, 0, 25, 700, "RED_WALL", (255, 0, 0)],
+    [0, 675, 700, 25, "RED_WALL", (255, 0, 0)],
 ]
 
 def point_intersects_wall(x, y, region):
@@ -32,7 +32,7 @@ def point_intersects_wall(x, y, region):
 def distance_to_wall(x, y, direction, max_dist):
     cos = math.cos(direction * math.pi / 180)
     sin = math.sin(direction * math.pi / 180)
-    for distance in range(0, int(max_dist), 4):
+    for distance in range(0, int(max_dist), 8):
         new_x = x + cos * distance
         new_y = y + sin * distance
         for region in wall_regions:
@@ -45,7 +45,7 @@ def distance_to_wall(x, y, direction, max_dist):
 def distance_to_orb(x, y, direction, max_dist):
     cos = math.cos(direction * math.pi / 180)
     sin = math.sin(direction * math.pi / 180)
-    for distance in range(0, int(max_dist), 4):
+    for distance in range(0, int(max_dist), 8):
         new_x = x + cos * distance
         new_y = y + sin * distance
         for orb in scoreOrb.scoreOrbList:
@@ -119,105 +119,89 @@ def mainGraphicsLoop():
             for orgsi in newOrgs['organisms']:
                 organismList.append(organism.Organism(orgsi))
 
-        #for org in organismList[:]:
-        org = organismList[0]
-        for reg in wall_regions:
-            if org.intersects(reg):
-                if reg == "RED_WALL":
-                    org.score -= 1
-
-        org.neuralNetwork.evaluate()
-
-        color = (255, 0, 0)
-        textsurface = font.render(str(org.trainingRoomNamespace), False, (255, 255, 255))
-        orgAmount = font.render(str(totalOrgs) + " / 2000", False, (255, 255, 255))
-        screen.blit(textsurface, (0,0))
-        screen.blit(orgAmount, (70,0))
-
-        if frames - org.spawnedFrame >= org.maxFrames:
-            scoredOrgs.append(org)
-            organismList.remove(org)
-
-        #rg.neuralNetwork.evaluate()
-
-        if len(scoreOrb.scoreOrbList) != 0:
-            for scoreOrbs in scoreOrb.scoreOrbList:
-                pygame.draw.circle(screen, scoreOrbs.color, (scoreOrbs.x, scoreOrbs.y), scoreOrbs.radius)
-                textsurface = font.render(str(scoreOrbs.score), False, (0, 0, 0))
-                screen.blit(textsurface,(scoreOrbs.x,scoreOrbs.y))
-                scoreOrbs.intersects(org)
-
-        # Read & handle outputs
-        for output in org.neuralNetwork.outputs:
-            if output.type == 'TurnOutput':
-                org.turnOutput(output._lastValue)
-            if output.type == 'MoveOutput':
-                org.moveOutput(output._lastValue)
-            if output.type == 'MoveSidewaysOutput':
-                org.sidwaysMoveOutput(output._lastValue * output.weight)
-
-        # Show the player's location before drawing eyes
-        pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
-        
-        view_x = org.x + math.cos(org.rotation * math.pi / 180) * org.radius * 2
-        view_y = org.y - math.sin(org.rotation * math.pi / 180) * org.radius * 2
-        pygame.draw.line(screen, (0, 0, 0), (org.x, org.y), (view_x, view_y), 2)
-        
-        for color in org.neuralNetwork.colors:
-            org.color = color.color
-        # Render eyes
-        for i in org.neuralNetwork.inputs:
-            eyeValue = i.attributeValue
-            eye = org.neuralNetwork.eyesDict[i.eyeId]
-
-            eyeDirection = eye.direction + -org.rotation
-            distance = 100 + org.radius
-            distance_x = math.cos(eyeDirection * math.pi / 180) * distance
-            distance_y = math.sin(eyeDirection * math.pi / 180) * distance
-            x = org.x + distance_x
-            y = org.y + distance_y
-
-            trace_x = org.x + math.cos(eyeDirection * math.pi / 180) * org.radius
-            trace_y = org.y + math.sin(eyeDirection * math.pi / 180) * org.radius
-            trace_distance = distance - org.radius
-            eye_to_wall = distance_to_wall(trace_x, trace_y, eyeDirection, trace_distance)
-            eye_to_orb = distance_to_orb(trace_x, trace_y, eyeDirection, trace_distance)
-            #While looking at nothing turn a weird purplish color
-            if eye_to_wall[0] == -1 and eye_to_orb[0] == -1:
-                value = 0
-                color = (123, 57, 199)
+        for org in organismList[:]:
+            #org = organismList[0]
             
-            #While looking at a wall that is the same as the eyeValue turn green and change the value
-            elif eyeValue == eye_to_wall[1]:
-                value = (trace_distance - eye_to_wall[0]) / trace_distance
-                color = (0, 255, 0)
 
-            #While looking at an orb that is the same as the eyeValue turn cyan and change the value
-            elif eyeValue == eye_to_orb[1]:
-                value = (trace_distance - eye_to_orb[0]) / trace_distance
-                color = (0, 255, 255)
+            org.neuralNetwork.evaluate()
 
-            #While looking at something else turn yellow
-            else:
-                value = 0
-                color = (255, 255, 0)
-            eye.value = value
+            color = (255, 0, 0)
+            textsurface = font.render(str(org.trainingRoomNamespace), False, (255, 255, 255))
+            orgAmount = font.render(str(totalOrgs) + " / 2000", False, (255, 255, 255))
+            screen.blit(textsurface, (0,0))
+            screen.blit(orgAmount, (70,0))
 
-            pygame.draw.line(screen, color, (trace_x, trace_y), (x, y), 2)
-            textsurface = font.render(str(eye.value) + "" + eyeValue, False, (0, 0, 0))
-            screen.blit(textsurface,(x,y))
+            if frames - org.spawnedFrame >= org.maxFrames:
+                scoredOrgs.append(org)
+                organismList.remove(org)
+
+            if len(scoreOrb.scoreOrbList) != 0:
+                for scoreOrbs in scoreOrb.scoreOrbList:
+                    pygame.draw.circle(screen, scoreOrbs.color, (scoreOrbs.x, scoreOrbs.y), scoreOrbs.radius)
+                    textsurface = font.render(str(scoreOrbs.score), False, (0, 0, 0))
+                    screen.blit(textsurface,(scoreOrbs.x,scoreOrbs.y))
+                    scoreOrbs.intersects(org)
+
+            # Read & handle outputs
+            for output in org.neuralNetwork.outputs:
+                if output.type == 'TurnOutput':
+                    org.turnOutput(output._lastValue)
+                if output.type == 'MoveOutput':
+                    org.moveOutput(output._lastValue)
+                if output.type == 'MoveSidewaysOutput':
+                    org.sidwaysMoveOutput(output._lastValue)
+
+            # Show the player's location before drawing eyes
+            pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
             
-            score = font.render(str(org.score), False, (0, 0, 0))
-            screen.blit(score,(org.x,org.y))
-        i = 0
-        for o in org.neuralNetwork.outputs:
-            #Some debug stuff pls ignore
-            #TODO: delete when done with project
-            weight = font.render("weight:" + str(round(o.weight, 2)) + " " + str(o.type), False, (0, 0, 0))
-            screen.blit(weight,(org.x + i*180,org.y))
-            score = font.render("Value:" + str(round(o._lastValue, 2)) + " " + str(o.type), False, (0, 0, 0))
-            screen.blit(score,(org.x + i*180,org.y + 30))
-            i+=1
+            view_x = org.x + math.cos(org.rotation * math.pi / 180) * org.radius * 2
+            view_y = org.y - math.sin(org.rotation * math.pi / 180) * org.radius * 2
+            pygame.draw.line(screen, (0, 0, 0), (org.x, org.y), (view_x, view_y), 2)
+            
+            for color in org.neuralNetwork.colors:
+                org.color = color.color
+            # Render eyes
+            for i in org.neuralNetwork.inputs:
+                eyeValue = i.attributeValue
+                eye = org.neuralNetwork.eyesDict[i.eyeId]
+
+                eyeDirection = eye.direction + -org.rotation
+                distance = 100 + org.radius
+                distance_x = math.cos(eyeDirection * math.pi / 180) * distance
+                distance_y = math.sin(eyeDirection * math.pi / 180) * distance
+                x = org.x + distance_x
+                y = org.y + distance_y
+
+                trace_x = org.x + math.cos(eyeDirection * math.pi / 180) * org.radius
+                trace_y = org.y + math.sin(eyeDirection * math.pi / 180) * org.radius
+                trace_distance = distance - org.radius
+                eye_to_wall = distance_to_wall(trace_x, trace_y, eyeDirection, trace_distance)
+                eye_to_orb = distance_to_orb(trace_x, trace_y, eyeDirection, trace_distance)
+                #While looking at nothing turn a weird purplish color
+                if eye_to_wall[0] == -1 and eye_to_orb[0] == -1:
+                    value = 0
+                    color = (123, 57, 199)
+                
+                #While looking at a wall that is the same as the eyeValue turn green and change the value
+                elif eyeValue == eye_to_wall[1]:
+                    value = (trace_distance - eye_to_wall[0]) / trace_distance
+                    color = (0, 255, 0)
+
+                #While looking at an orb that is the same as the eyeValue turn cyan and change the value
+                elif eyeValue == eye_to_orb[1]:
+                    value = (trace_distance - eye_to_orb[0]) / trace_distance
+                    color = (0, 255, 255)
+
+                #While looking at something else turn yellow
+                else:
+                    value = 0
+                    color = (255, 255, 0)
+                eye.value = value
+
+                pygame.draw.line(screen, color, (trace_x, trace_y), (x, y), 2)
+                
+                score = font.render(str(org.score), False, (0, 0, 0))
+                screen.blit(score,(org.x,org.y))
         #update the screen
         pygame.display.flip()
 

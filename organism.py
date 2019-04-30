@@ -29,11 +29,11 @@ class Organism:
     self.ttl = org['ttl']
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
-    self.x = 350 + random.randint(-300, 300)
-    self.y = 350 + random.randint(-300, 300)
+    self.x = 350 + random.randint(-50, 50)
+    self.y = 350 + random.randint(-50, 50)
     self.radius = 10
     self.color = (0, 0, 0)
-    self.rotation = random.randint(0, 360)
+    self.rotation = 0 #random.randint(0, 360)
     self.spawnedFrame = gameGraphics.frames
     self.time = 0
     self.maxFrames = 15 * 60
@@ -44,45 +44,56 @@ class Organism:
 
 #Turns at a speed determained by the lastValue
 #TODO: rewrite this function because it sucks and the orgs cant learn with it
-  def turnOutput(self, weight):
-    if weight > 0.5 or weight < -0.5:
-      self.rotation += weight
+  def turnOutput(self, value):
+    if value > 0.5:
+      weight = (value * 2) - 1
+      self.rotation += weight*5
 
 #Takes the lastvalue to move the organism up or down
-  def moveOutput(self, weight):
-    x_movement = math.cos(weight*180)
+  def moveOutput(self, value):
+    weight = (value * 2) - 1
+    x_movement = (weight*2)*(math.cos(self.rotation * (math.pi / 180)))
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
+        if reg[4] == "RED_WALL":
+          self.score += -1
         if x_movement > 0:
           self.x -= 1
         else:
           self.x += 1
 
-    y_movement = math.sin(weight*180)
+    y_movement = (weight*2)*(math.sin(self.rotation * (math.pi / 180)))
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
+        if reg[4] == "RED_WALL":
+          self.score += -1
         if y_movement > 0:
           self.y += 1
         else:
           self.y -= 1
   
   #Takes the lastvalue to move the organism left or right
-  def sidwaysMoveOutput(self, weight):
-    x_movement = math.sin(weight*180)
+  def sidwaysMoveOutput(self, value):
+    weight = (value * 2) - 1
+    x_movement = (weight*2)*(math.sin(self.rotation * (math.pi / 180)))
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
+        if reg[4] == "RED_WALL":
+          self.score += -1
         if x_movement > 0:
           self.x -= 1
         else:
           self.x += 1
 
-    y_movement = math.cos(weight*180)
+    y_movement = (weight*2)*(math.cos(self.rotation * (math.pi / 180)))
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
       while self.intersects(reg):
+        if reg[4] == "RED_WALL":
+          self.score += -1
         if y_movement > 0:
           self.y += 1
         else:
@@ -145,51 +156,59 @@ class NeuralNet:
 #small function to make sure I am always evaluating
 #TODO: Something is wrong with one of these evaluate functions cause the lastValue never changes. Gotta look into this eventualy
   def evaluate(self):
-    
+    for outpute in self.outputs:
+      outpute.reset()
+
     for output in self.outputs:
-      output._lastValue = output.outputEvaluate()
+      output._lastValue = output.Evaluate()
       
 class Neuron:
   """A node of a neural network"""
   def __init__(self, network, thisNeuron):
     self.network = network
-    self._lastValue = 0
-    self.weight = 0
     self.type = thisNeuron['$TYPE']
     self._base_type = thisNeuron['_base_type']
     self.id = thisNeuron['id']
     self.full = thisNeuron
+    self.evaluated = False
 
     self.deps = []
 
     if 'eye' in thisNeuron:
       self.eyeId = thisNeuron['eye']
-
     if 'dependencies' in thisNeuron:
       for dep in thisNeuron['dependencies']:
         self.deps.append(Dependency(self.network, dep))
-        
+  
+  def reset(self):
+    self._lastValue = -1
+    self.evaluated = False
   #Evaluate the last value of the output neuron and also do the weights but that doesnt matter as of now
-  def outputEvaluate(self):
-    value = 0
-    weight = 0
-    
-    for depend in self.deps:
-      if self._lastValue != -100:
-        value += depend._last_value
-        weight += depend.depweight
-    if len(self.deps) != 0:
-      self.weight = weight / len(self.deps)
-    value = self.sigmoid(value)
-    return value
+  def Evaluate(self):
+    if self.evaluated == True:
+      return self._lastValue
+      
+    else:
+      value = 0
+
+      for dep in self.deps:
+        if dep.dependentNeuron != 'e':
+          if dep.dependentNeuron._base_type == 'input':
+            eyeVal = dep.network.eyesDict[dep.dependentNeuron.eyeId].value
+            value += ((eyeVal * 2) - 1) * dep.weight
+          
+          value += dep.dependentNeuron.Evaluate() * dep.weight
+      if len(self.deps) != 0:
+        value / len(self.deps)
+      self._lastValue = self.sigmoid(value)
+      self.evaluated = True
+      
+      return self._lastValue
+
 
 #Sigmoid but with a check to make sure I dont get a outofbounds exeption
   def sigmoid(self, i):
-    sig = 0
-    if i > 0:
-      sig = (1) / (1 + math.exp(-i))
-    if i < 0:
-      sig = (1 - 1/(1 + math.exp(i)))
+    sig = (1) / (1 + math.exp(-i))
     return sig
     
 
@@ -213,22 +232,19 @@ class Output(Neuron):
 
 class Dependency:
   def __init__(self, network, data):
-    
-    self.neuronId = data['neuronId']
-    self.depweight = float(data['weight'])
-    self._last_value = -100
-    if self.neuronId in network.inputDict:
-      self.input = network.inputDict[self.neuronId]
-      if self.input.eyeId in network.eyesDict:
-        self.eye = network.eyesDict[self.input.eyeId]
-        self._last_value = self.evaluateDep()
-    elif self.neuronId in network.middleDict:
-      self.input = network.middleDict[self.neuronId]
-    
+    depNeuronId = data['neuronId']
+    self.weight = data['weight']
+    self.network = network
+    self.dependentNeuron = 'e'
+    if depNeuronId in network.inputDict:
+      self.dependentNeuron = network.inputDict[depNeuronId]
+    elif depNeuronId in network.middleDict:
+      self.dependentNeuron = network.middleDict[depNeuronId]
+    elif depNeuronId in network.outputDict:
+      self.dependentNeuron = network.outputDict[depNeuronId]
 
-  def evaluateDep(self):
-    print(str(self.depweight) + " " + str(self.eye.value))
-    return self.depweight * self.eye.value
+
+
       
     
     
