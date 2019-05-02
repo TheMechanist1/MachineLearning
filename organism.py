@@ -29,14 +29,18 @@ class Organism:
     self.ttl = org['ttl']
     self.nNet = org['nNet']
     self.neuralNetwork = NeuralNet(self.nNet)
-    self.x = 350 + random.randint(-50, 50)
-    self.y = 350 + random.randint(-50, 50)
-    self.radius = 10
+    self.x = 37.5
+    self.y = gameGraphics.screenHeight - 50
+    self.radius = 5
     self.color = (0, 0, 0)
     self.rotation = 0 #random.randint(0, 360)
     self.spawnedFrame = gameGraphics.frames
     self.time = 0
-    self.maxFrames = 15 * 60
+    self.maxFrames = 30 * 60
+    self.timeSinceLastScore = gameGraphics.frames
+
+  def update(self):
+    self.timeSinceLastScore = gameGraphics.frames
 
   def to_json(self):
     orgJson = {"namespace":self.namespace, "score": str(self.score)}
@@ -49,15 +53,28 @@ class Organism:
       weight = (value * 2) - 1
       self.rotation += weight*5
 
+  def hitWall(self, reg):
+    # if reg[4] == "RED_WALL":
+    #   self.score += -1
+    pass
+    
+  def handleIntersects(self, reg):
+    if reg[4] == "RED_WALL":
+      self.score -= 1000
+      if self in gameGraphics.organismList:
+        gameGraphics.scoredOrgs.append(self)
+        gameGraphics.organismList.remove(self)
+
 #Takes the lastvalue to move the organism up or down
   def moveOutput(self, value):
     weight = (value * 2) - 1
     x_movement = (weight*2)*(math.cos(self.rotation * (math.pi / 180)))
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
+      if self.intersects(reg):
+        self.handleIntersects(reg)
       while self.intersects(reg):
-        if reg[4] == "RED_WALL":
-          self.score += -1
+        self.hitWall(reg)
         if x_movement > 0:
           self.x -= 1
         else:
@@ -66,9 +83,10 @@ class Organism:
     y_movement = (weight*2)*(math.sin(self.rotation * (math.pi / 180)))
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
+      if self.intersects(reg):
+        self.handleIntersects(reg)
       while self.intersects(reg):
-        if reg[4] == "RED_WALL":
-          self.score += -1
+        self.hitWall(reg)
         if y_movement > 0:
           self.y += 1
         else:
@@ -80,9 +98,10 @@ class Organism:
     x_movement = (weight*2)*(math.sin(self.rotation * (math.pi / 180)))
     self.x += x_movement
     for reg in gameGraphics.wall_regions:
+      if self.intersects(reg):
+        self.handleIntersects(reg)
       while self.intersects(reg):
-        if reg[4] == "RED_WALL":
-          self.score += -1
+        self.hitWall(reg)
         if x_movement > 0:
           self.x -= 1
         else:
@@ -91,15 +110,16 @@ class Organism:
     y_movement = (weight*2)*(math.cos(self.rotation * (math.pi / 180)))
     self.y -= y_movement
     for reg in gameGraphics.wall_regions:
+      if self.intersects(reg):
+        self.handleIntersects(reg)
       while self.intersects(reg):
-        if reg[4] == "RED_WALL":
-          self.score += -1
+        self.hitWall(reg)
         if y_movement > 0:
           self.y += 1
         else:
           self.y -= 1
 
-#My intersect function to check if the organism is touching a wall or a orb
+#My intersect function to check if the organism is touching a wall
   def intersects(self, region):
     x = region[0]
     y = region[1]

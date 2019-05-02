@@ -10,13 +10,21 @@ import chaosapi
 import scoreOrb
 import profiler
 
+organismList = []
+scoreOrbList = []
+frames = 0
+totalOrgs = 0
+screenWidth = 800
+screenHeight = 800
 scoredOrgs = []
+
 wall_regions = [
     # x, y, w, h, name, color
-    [0, 0, 700, 25, "RED_WALL", (255, 0, 0)],
-    [0, 0, 25, 700, "RED_WALL", (255, 0, 0)],
-    [675, 0, 25, 700, "RED_WALL", (255, 0, 0)],
-    [0, 675, 700, 25, "RED_WALL", (255, 0, 0)],
+    [0, 0, screenWidth, 25, "RED_WALL", (255, 0, 0)],
+    [0, 0, 25, screenHeight, "RED_WALL", (255, 0, 0)],
+    [screenWidth - 25, 0, 25, screenHeight, "RED_WALL", (255, 0, 0)],
+    [0, screenHeight - 25, screenWidth, 25, "RED_WALL", (255, 0, 0)],
+    [0, screenHeight - 100, screenWidth - 75, 25, "RED_WALL", (255, 0, 0)],
 ]
 
 def point_intersects_wall(x, y, region):
@@ -32,7 +40,7 @@ def point_intersects_wall(x, y, region):
 def distance_to_wall(x, y, direction, max_dist):
     cos = math.cos(direction * math.pi / 180)
     sin = math.sin(direction * math.pi / 180)
-    for distance in range(0, int(max_dist), 8):
+    for distance in range(0, int(max_dist), 16):
         new_x = x + cos * distance
         new_y = y + sin * distance
         for region in wall_regions:
@@ -45,7 +53,7 @@ def distance_to_wall(x, y, direction, max_dist):
 def distance_to_orb(x, y, direction, max_dist):
     cos = math.cos(direction * math.pi / 180)
     sin = math.sin(direction * math.pi / 180)
-    for distance in range(0, int(max_dist), 8):
+    for distance in range(0, int(max_dist), 16):
         new_x = x + cos * distance
         new_y = y + sin * distance
         for orb in scoreOrb.scoreOrbList:
@@ -55,12 +63,22 @@ def distance_to_orb(x, y, direction, max_dist):
         
     return -1, None
 
-organismList = []
-scoreOrbList = []
-frames = 0
-totalOrgs = 0
+scoreOrb.scoreOrbList = [
+    scoreOrb.ScoreOrb("POSITIVE", 10, 50, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 150, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 250, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 350, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 450, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 550, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 650, 750),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 750),
 
-scoreOrb.scoreOrbList.append(scoreOrb.ScoreOrb("POSITIVE", 10, 500, 500))
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 650),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 550),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 450),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 350),
+    scoreOrb.ScoreOrb("POSITIVE", 10, 750, 250),
+]
 
 def mainGraphicsLoop():
     global frames, totalOrgs
@@ -73,13 +91,9 @@ def mainGraphicsLoop():
     for org in organ['organisms']:
         organismList.append(organism.Organism(org))
     totalOrgs = organ['stats']['orgsSpawnedSoFar']
-        
-    
-    
-
 
     #set window peramiters and open the window
-    size = (800, 800)
+    size = (screenWidth, screenWidth)
     screen = pygame.display.set_mode(size)
 
     # Loop until the user clicks the close button.
@@ -99,17 +113,29 @@ def mainGraphicsLoop():
         for event in pygame.event.get(): # User did something
             if event.type == pygame.QUIT: # If user clicked close
                 done = True # Flag that we are done so we exit this loop
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    for org in organismList:
+                        scoredOrgs.append(org)
+                    organismList.clear()
+                   
+
+        profiler.start('everything')
 
         screen.fill((255, 255, 255))
 
         for region in wall_regions:
             pygame.draw.rect(screen, region[5], (region[0], region[1], region[2], region[3]))
 
+        for scoreOrbs in scoreOrb.scoreOrbList:
+            pygame.draw.circle(screen, scoreOrbs.color, (scoreOrbs.x, scoreOrbs.y), scoreOrbs.radius)
+            textsurface = font.render(str(scoreOrbs.score), False, (0, 0, 0))
+            screen.blit(textsurface,(scoreOrbs.x,scoreOrbs.y))
+
         encoded = []
         if len(organismList) <= 0:
             for score in scoredOrgs:
                 encoded.append(score.to_json())
-            
 
             scoredOrgs.clear()
             organismList.clear()
@@ -119,10 +145,8 @@ def mainGraphicsLoop():
             for orgsi in newOrgs['organisms']:
                 organismList.append(organism.Organism(orgsi))
 
+        profiler.start('organisms')
         for org in organismList[:]:
-            #org = organismList[0]
-            
-
             org.neuralNetwork.evaluate()
 
             color = (255, 0, 0)
@@ -131,19 +155,17 @@ def mainGraphicsLoop():
             screen.blit(textsurface, (0,0))
             screen.blit(orgAmount, (70,0))
 
-            if frames - org.spawnedFrame >= org.maxFrames:
+            if(frames - org.timeSinceLastScore) >= org.maxFrames:
                 scoredOrgs.append(org)
                 organismList.remove(org)
+                continue
 
-            if len(scoreOrb.scoreOrbList) != 0:
-                for scoreOrbs in scoreOrb.scoreOrbList:
-                    pygame.draw.circle(screen, scoreOrbs.color, (scoreOrbs.x, scoreOrbs.y), scoreOrbs.radius)
-                    textsurface = font.render(str(scoreOrbs.score), False, (0, 0, 0))
-                    screen.blit(textsurface,(scoreOrbs.x,scoreOrbs.y))
-                    scoreOrbs.intersects(org)
+            for scoreOrbs in scoreOrb.scoreOrbList:
+                scoreOrbs.intersects(org)
 
             # Read & handle outputs
             for output in org.neuralNetwork.outputs:
+                
                 if output.type == 'TurnOutput':
                     org.turnOutput(output._lastValue)
                 if output.type == 'MoveOutput':
@@ -153,7 +175,7 @@ def mainGraphicsLoop():
 
             # Show the player's location before drawing eyes
             pygame.draw.circle(screen, org.color, (int(org.x), int(org.y)), org.radius)
-            
+
             view_x = org.x + math.cos(org.rotation * math.pi / 180) * org.radius * 2
             view_y = org.y - math.sin(org.rotation * math.pi / 180) * org.radius * 2
             pygame.draw.line(screen, (0, 0, 0), (org.x, org.y), (view_x, view_y), 2)
@@ -195,17 +217,19 @@ def mainGraphicsLoop():
                 #While looking at something else turn yellow
                 else:
                     value = 0
-                    color = (255, 255, 0)
+                    color = (123, 57, 199)
                 eye.value = value
 
                 pygame.draw.line(screen, color, (trace_x, trace_y), (x, y), 2)
                 
                 score = font.render(str(org.score), False, (0, 0, 0))
                 screen.blit(score,(org.x,org.y))
+        profiler.end()
+        profiler.end()
         #update the screen
         pygame.display.flip()
 
  
         #60 frames per second
         #TODO: add a function to make this go faster for faster sim times
-        clock.tick(60)
+        # clock.tick(60)

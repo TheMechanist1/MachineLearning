@@ -8,11 +8,11 @@ class Region:
         self.name = name
         self.time = time.perf_counter()
 
-def profileStart(name):
+def start(name):
     if enable:
         regions.append(Region(name))
 
-def profileEnd():
+def end():
     if enable:
         region = regions.pop()
         endTime = time.perf_counter()

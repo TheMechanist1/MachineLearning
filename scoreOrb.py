@@ -1,5 +1,6 @@
 import random
 import math
+import time
 scoreOrbList = []
 #Take the score orb and turn it into a usable object
 class ScoreOrb:
@@ -37,4 +38,5 @@ class ScoreOrb:
 
     if math.sqrt((sx - x)**2 + (sy - y)**2)<=r+sr:
       other.score += self.score
+      other.update()
       self.orgsTouched.append(other)
